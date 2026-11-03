@@ -1,0 +1,4 @@
+*.rds
+*.log
+*.tmp
+.Rhistory
