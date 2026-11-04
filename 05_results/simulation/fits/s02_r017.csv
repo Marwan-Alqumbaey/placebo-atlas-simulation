@@ -1,0 +1,2 @@
+"sid","rep","seed","rows","censored","theta_true","theta_mean","theta_lo","theta_hi","conv_true","conv_mean","conv_lo","conv_hi","max_rhat","min_ess","divergent","minutes"
+2,17,200017,1600,0.225625,0.369375,0.3772575,0.35875,0.395,0.35875,0.366391875,0.348734375,0.383140625,1.00287218206484,191.128546213283,0,21.543581310908
