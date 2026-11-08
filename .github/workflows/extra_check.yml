@@ -1,0 +1,89 @@
+name: extra check
+
+# Extra check (added 2026-11-08; plan in 05_results/simulation/EXTRA_CHECK_PLAN.md).
+# Refits the same 6400 data sets with the same model and seeds and keeps theta for fully observed
+# and for censored rows. Results go to 05_results/simulation/fits_obs. Runs in rounds like the main study.
+
+on:
+  push:
+    branches: [main]
+    paths: ['04_code/R/sim_obs.R', '.github/workflows/extra_check.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: extra-check
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    strategy:
+      fail-fast: false
+      matrix:
+        job: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+      - name: Install rstan
+        run: Rscript -e 'install.packages("rstan")'
+      - name: Compile the model
+        working-directory: 04_code/R
+        run: Rscript -e 'library(rstan); rstan_options(auto_write = TRUE); invisible(stan_model("model_census.stan"))'
+      - name: Fit simulated data sets
+        timeout-minutes: 330
+        continue-on-error: true
+        working-directory: 04_code/R
+        run: |
+          for k in 1 2 3 4; do
+            w=$(( (${{ matrix.job }} - 1) * 4 + k ))
+            Rscript sim_obs.R $w 80 250 > ../../worker_$w.log 2>&1 &
+          done
+          wait
+          tail -n 3 ../../worker_*.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: obs-${{ matrix.job }}
+          path: 05_results/simulation/fits_obs/s*.csv
+          if-no-files-found: ignore
+          retention-days: 7
+
+  collect:
+    needs: run
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Count fits before
+        id: before
+        run: echo "n=$(ls 05_results/simulation/fits_obs/*.csv 2>/dev/null | wc -l)" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: obs-*
+          merge-multiple: true
+          path: 05_results/simulation/fits_obs
+      - name: Save new fits
+        id: save
+        run: |
+          n=$(ls 05_results/simulation/fits_obs/*.csv 2>/dev/null | wc -l)
+          echo "n=$n" >> "$GITHUB_OUTPUT"
+          echo "fits: ${{ steps.before.outputs.n }} -> $n of 6400"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add 05_results/simulation/fits_obs
+          git diff --cached --quiet && exit 0
+          git commit -m "Extra check fits: $n of 6400"
+          for i in 1 2 3 4 5; do git pull --rebase && git push && break; sleep 10; done
+      - name: Start next round
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          a=${{ steps.before.outputs.n }}; b=${{ steps.save.outputs.n }}
+          if [ "$b" -lt 6400 ] && [ "$b" -gt "$a" ]; then gh workflow run extra_check.yml --ref main; else echo "no new round"; fi
