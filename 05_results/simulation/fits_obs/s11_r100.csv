@@ -1,0 +1,2 @@
+"sid","rep","seed","rows","n_obs","n_cens","obs_true","obs_mean","obs_lo","obs_hi","cens_true","cens_mean","cens_lo","cens_hi","theta_true","theta_mean","theta_lo","theta_hi","conv_mean","max_rhat","min_ess","divergent","minutes"
+11,100,1100100,1345,1057,242,0.195837275307474,0.209205,0.192053,0.227058,0.528925619834711,0.523421,0.450413,0.591012,0.255018587360595,0.265366,0.244591,0.286989,0.244805,1.02544077360327,179.472107850866,0,32.323426981767
